@@ -29,7 +29,6 @@ async function loadImage(path) {
 
         return new Promise((resolve, reject) => {
             img.onload = () => {
-                console.log(`Image loaded: ${path}`);
                 URL.revokeObjectURL(url);
                 resolve(img);
             };

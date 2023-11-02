@@ -1,10 +1,47 @@
 export class Piece {
    static None = 0;
-   static King = 1;
-   static Pawn = 2;
-   static Knight = 3;
-   static Bishop = 4;
-   static Queen = 6;
-   static White = 8;
-   static Black = 16;
- }
+   static Pawn = 1;
+   static Knight = 2;
+   static Bishop = 3;
+   static Rook = 4;
+   static Queen = 5;
+   static King = 6;
+ 
+   static White = 0;
+   static Black = 8;
+ 
+   static TypeMask = 0b0111;
+   static ColorMask = 0b1000;
+ 
+   static isColor(piece, color) {
+     return (piece & Piece.ColorMask) === color && piece !== Piece.None;
+   }
+ 
+   static isWhite(piece) {
+     return Piece.isColor(piece, Piece.White);
+   }
+ 
+   static pieceColor(piece) {
+     return piece & Piece.ColorMask;
+   }
+ 
+   static pieceType(piece) {
+      console.log(piece)
+     return piece & Piece.TypeMask;
+   }
+ 
+   static isOrthogonalSlider(piece) {
+     const type = Piece.pieceType(piece);
+     return type === Piece.Queen || type === Piece.Rook;
+   }
+ 
+   static isDiagonalSlider(piece) {
+     const type = Piece.pieceType(piece);
+     return type === Piece.Queen || type === Piece.Bishop;
+   }
+ 
+   static isSlidingPiece(piece) {
+     const type = Piece.pieceType(piece);
+     return type === Piece.Queen || type === Piece.Bishop || type === Piece.Rook;
+   }
+}
