@@ -44,4 +44,19 @@ export class Piece {
      const type = Piece.pieceType(piece);
      return type === Piece.Queen || type === Piece.Bishop || type === Piece.Rook;
    }
+
+   static pieceMapping = {
+      [Piece.White | Piece.Bishop]: 'lb',
+      [Piece.White | Piece.King]: 'lk',
+      [Piece.White | Piece.Knight]: 'ln',
+      [Piece.White | Piece.Pawn]: 'lp',
+      [Piece.White | Piece.Queen]: 'lq',
+      [Piece.White | Piece.Rook]: 'lr',
+      [Piece.Black | Piece.Bishop]: 'db',
+      [Piece.Black | Piece.King]: 'dk',
+      [Piece.Black | Piece.Knight]: 'dn',
+      [Piece.Black | Piece.Pawn]: 'dp',
+      [Piece.Black | Piece.Queen]: 'dq',
+      [Piece.Black | Piece.Rook]: 'dr',
+  };
 }
