@@ -1,6 +1,8 @@
 import { Piece } from "../models/piece.js";
-import { Board, LIGHT_SQUARE_COLOR, DARK_SQUARE_COLOR } from "../models/board.js";
+import { Board } from "../models/board.js";
 
+const LIGHT_SQUARE_COLOR = '#F0D9B5';
+const DARK_SQUARE_COLOR = '#B58863';
 
 export class Render {
     constructor(context, images, squareSize) {
