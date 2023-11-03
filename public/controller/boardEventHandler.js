@@ -1,6 +1,6 @@
 import { Piece } from "../models/piece.js";
+import { SelectedPiece } from "../models/SelectedPiece.js";
 import { MoveCalculator } from "./moveCalculator.js";
-
 
 export class BoardEventHandler {
     constructor(canvas, squareSize, squares, render) {
@@ -9,123 +9,180 @@ export class BoardEventHandler {
         this.squares = squares;
         this.render = render;
         this.selectedPiece = null;
-        this.offsetX = 0;
-        this.offsetY = 0;
         this.moveCalculator = new MoveCalculator(squares);
 
-        this.addEventListeners();
+        this.attachHandlers();
     }
 
-    addEventListeners() {
-        this.canvas.addEventListener('mousedown', this.handleMouseDown.bind(this));
-        this.canvas.addEventListener('mousemove', this.handleMouseMove.bind(this));
-        this.canvas.addEventListener('mouseup', this.handleMouseUp.bind(this));
+    attachHandlers() {
+        this.canvas.addEventListener('mousedown', evt => this.onMouseDown(evt));
+        this.canvas.addEventListener('mousemove', evt => this.onMouseMove(evt));
+        this.canvas.addEventListener('mouseup', evt => this.onMouseUp(evt));
+
+        this.canvas.addEventListener('touchstart', evt => this.onTouchStart(evt));
+        this.canvas.addEventListener('touchmove', evt => this.onTouchMove(evt));
+        this.canvas.addEventListener('touchend', evt => this.onTouchEnd(evt));
     }
 
-    getMousePos(evt) {
-        const rect = this.canvas.getBoundingClientRect();
+    onTouchStart(event) {
+        event.preventDefault(); 
+        this.onMouseDown(this.translateTouchEvent(event));
+    }
+
+    onTouchMove(event) {
+        event.preventDefault(); 
+        this.onMouseMove(this.translateTouchEvent(event));
+    }
+
+    onTouchEnd(event) {
+        event.preventDefault(); 
+        this.onMouseUp(this.translateTouchEvent(event));
+    }
+
+    translateTouchEvent(event) {
+        const touch = event.touches[0] || event.changedTouches[0];
         return {
-            x: evt.clientX - rect.left,
-            y: evt.clientY - rect.top
+            clientX: touch.clientX,
+            clientY: touch.clientY,
+            preventDefault: () => event.preventDefault()
         };
     }
 
-    handleMouseDown(evt) {
-        const mousePos = this.getMousePos(evt);
-        const file = Math.floor(mousePos.x / this.squareSize);
-        const rank = Math.floor(mousePos.y / this.squareSize);
-        const piece = this.squares[file + rank * 8];
 
+    onMouseDown(event) {
+        const mousePos = this.getMousePosition(event);
+        const piece = this.getPieceAtPosition(mousePos);
         if (piece) {
-            const moves = this.moveCalculator.getPossibleMoves(piece, file, rank);
-            this.selectedPiece = {
-                piece,
-                file,
-                rank,
-                moves
-            };
-            this.offsetX = mousePos.x - file * this.squareSize;
-            this.offsetY = mousePos.y - rank * this.squareSize;
-            this.squares[file + rank * 8] = null;
-            this.render.createGraphicalBoard(this.squares, moves);
-            this.render.drawPieceAtPosition(piece, mousePos.x - this.offsetX, mousePos.y - this.offsetY);
+            this.selectPiece(piece, mousePos);
         }
     }
 
-    handleMouseMove(evt) {
-        if (!this.selectedPiece) return;
-
-        const mousePos = this.getMousePos(evt);
-        this.moveSelectedPiece(mousePos);
-    }
-
-    getFileRankFromMousePos(mousePos) {
-        const file = Math.floor(mousePos.x / this.squareSize);
-        const rank = Math.floor(mousePos.y / this.squareSize);
-        return { file, rank };
-    }
-
-    moveSelectedPiece(mousePos) {
-        this.renderBoardWithHighlightedMoves(this.selectedPiece.moves);
-        this.renderPieceDraggedByMouse(mousePos);
-    }
-
-    renderBoardWithHighlightedMoves(moves) {
-        this.render.createGraphicalBoard(this.squares, moves);
-    }
-
-    renderPieceDraggedByMouse(mousePos) {
-        const x = mousePos.x - this.offsetX;
-        const y = mousePos.y - this.offsetY;
-        this.render.drawPieceAtPosition(this.selectedPiece.piece, x, y);
-    }
-
-    handleMouseUp(evt) {
+    onMouseMove(event) {
         if (this.selectedPiece) {
-            const mousePos = this.getMousePos(evt);
-            const file = Math.floor(mousePos.x / this.squareSize);
-            const rank = Math.floor(mousePos.y / this.squareSize);
-            const targetIndex = file + rank * 8;
-            const targetPiece = this.squares[targetIndex];
-            const isOwnPiece = targetPiece && (targetPiece & Piece.ColorMask) === (this.selectedPiece.piece & Piece.ColorMask);
-    
-            // Überprüfen Sie, ob der Zug in der Liste der möglichen Züge ist und dass das Ziel nicht von einer eigenen Figur besetzt ist
-            const isValidMove = !isOwnPiece && this.selectedPiece.moves.some(move => 
-                move.file === file && move.rank === rank
-            );
-    
-            if (isValidMove) {
-                // Führen Sie den Zug aus, wenn er gültig ist
-                // Wenn es eine gegnerische Figur gibt, erfassen Sie sie
-                if (targetPiece && !isOwnPiece) {
-                    this.squares[targetIndex] = null;
-                }
-    
-                // Führen Sie den Zug aus, indem Sie das ausgewählte Teil bewegen
-                this.squares[targetIndex] = this.selectedPiece.piece;
-                this.squares[this.selectedPiece.file + this.selectedPiece.rank * 8] = null; // Entfernen Sie das Teil von seinem ursprünglichen Platz
-                const opponentColor = (this.selectedPiece.piece & Piece.ColorMask) === Piece.White ? Piece.Black : Piece.White;
-                const opponentKing = opponentColor | Piece.King;
-                const isKingCaptured = !this.squares.includes(opponentKing);
+            this.dragPiece(this.getMousePosition(event));
+        }
+    }
 
-                if (isKingCaptured) {
-                    // Wenn der gegnerische König geschlagen wurde, behandeln Sie das Spielende
-                    alert("Schachmatt! Das Spiel ist vorbei.");
-                    // Hier könnten Sie weitere Aktionen durchführen, wie das Spiel zu beenden oder eine neue Partie zu starten
-                }
-            } else {
-                // Wenn der Zug nicht gültig ist oder das Ziel von einer eigenen Figur besetzt ist, setzen Sie das Teil auf seinen ursprünglichen Platz zurück
-                const originalIndex = this.selectedPiece.file + this.selectedPiece.rank * 8;
-                this.squares[originalIndex] = this.selectedPiece.piece;
-            }
-    
-            // Egal ob der Zug gültig ist oder nicht, stellen Sie den Zustand wieder her und aktualisieren Sie das Board
+    onMouseUp(event) {
+        if (this.selectedPiece) {
+            this.dropPiece(this.getMousePosition(event));
             this.selectedPiece = null;
             this.render.createGraphicalBoard(this.squares);
         }
     }
-    
-    
-    
-    
+
+    getMousePosition(event) {
+        const { left, top } = this.canvas.getBoundingClientRect();
+        return {
+            x: event.clientX - left,
+            y: event.clientY - top
+        };
+    }
+
+    getPieceAtPosition({ x, y }) {
+        const { file, rank } = this.getFileRankFromPosition({ x, y });
+        return this.squares[this.getIndex(file, rank)];
+    }
+
+    selectPiece(piece, mousePos) {
+        const { file, rank } = this.getFileRankFromPosition(mousePos);
+        const moves = this.moveCalculator.getPossibleMoves(piece, file, rank);
+        this.selectedPiece = new SelectedPiece(piece, file, rank, moves);
+        this.highlightMoves(moves);
+        this.removePieceFromBoard(file, rank);
+    }
+
+    highlightMoves(moves) {
+        this.render.createGraphicalBoard(this.squares, moves);
+    }
+
+    removePieceFromBoard(file, rank) {
+        this.squares[this.getIndex(file, rank)] = null;
+    }
+
+    dragPiece(mousePosition) {
+        this.highlightMoves(this.selectedPiece.moves);
+        this.renderPieceDraggedByMouse(mousePosition);
+    }
+
+    dropPiece(mousePos) {
+        const { file, rank } = this.getFileRankFromPosition(mousePos);
+        if (this.isMoveValid(file, rank)) {
+            this.placePiece(file, rank);
+        } else {
+            this.returnPiece();
+        }
+        this.checkForCheckmate();
+    }
+
+    renderPieceDraggedByMouse(mousePos) {
+        const { x, y } = this.calculatePiecePosition(mousePos);
+        this.render.drawPieceAtPosition(this.selectedPiece.piece, x, y);
+    }
+
+    calculatePiecePosition(mousePos) {
+        const offsetX = mousePos.x % this.squareSize;
+        const offsetY = mousePos.y % this.squareSize;
+        return {
+            x: mousePos.x - offsetX,
+            y: mousePos.y - offsetY
+        };
+    }
+
+    placePiece(file, rank) {
+        const moveIsValid = this.isMoveValid(file, rank);
+        const originalIndex = this.getIndex(this.selectedPiece.file, this.selectedPiece.rank);
+        const targetIndex = this.getIndex(file, rank);
+
+        if (moveIsValid) {
+            this.squares[originalIndex] = null;
+            this.squares[targetIndex] = this.selectedPiece.piece;
+            this.checkForCheckmate();
+        } else {
+            this.returnPiece();
+        }
+    }
+
+    returnPiece() {
+        const { file, rank, piece } = this.selectedPiece;
+        this.squares[this.getIndex(file, rank)] = piece;
+    }
+
+    isMoveValid(file, rank) {
+        const targetPiece = this.getPieceAtPosition({ x: file * this.squareSize, y: rank * this.squareSize });
+        const isOwnPiece = targetPiece && this.isSameColor(targetPiece, this.selectedPiece.piece);
+        return !isOwnPiece && this.selectedPiece.moves.some(move => move.file === file && move.rank === rank);
+    }
+
+
+    checkForCheckmate() {
+        const isKingCaptured = this.isKingCaptured(this.getOpponentColor(this.selectedPiece.piece));
+        if (isKingCaptured) {
+            alert("Checkmate! The game is over.");
+        }
+    }
+
+    getIndex(file, rank) {
+        return file + rank * 8;
+    }
+
+    isSameColor(piece1, piece2) {
+        return (piece1 & Piece.ColorMask) === (piece2 & Piece.ColorMask);
+    }
+
+    getOpponentColor(piece) {
+        return (piece & Piece.ColorMask) === Piece.White ? Piece.Black : Piece.White;
+    }
+
+    isKingCaptured(opponentColor) {
+        const opponentKing = opponentColor | Piece.King;
+        return !this.squares.includes(opponentKing);
+    }
+
+    getFileRankFromPosition({ x, y }) {
+        return {
+            file: Math.floor(x / this.squareSize),
+            rank: Math.floor(y / this.squareSize)
+        };
+    }
 }
