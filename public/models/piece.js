@@ -26,7 +26,6 @@ export class Piece {
    }
  
    static pieceType(piece) {
-      console.log(piece)
      return piece & Piece.TypeMask;
    }
  

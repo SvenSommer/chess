@@ -26,20 +26,20 @@ export class Render {
         this.ctx.fillRect(x * this.squareSize, y * this.squareSize, this.squareSize, this.squareSize);
     }
 
-    drawPiece(file, rank) {
-        const pieceCode = Board.Square[file + rank * 8];
+    drawPiece(squares, file, rank) {
+        const pieceCode = squares[file + rank * 8];
         if (pieceCode) {
             this.drawPieceAtPosition(pieceCode, file * this.squareSize, rank * this.squareSize);
         }
     }
 
-    createGraphicalBoard() {
+    createGraphicalBoard(squares) {
         for (let file = 0; file < 8; file++) {
             for (let rank = 0; rank < 8; rank++) {
                 const isLightSquare = (file + rank) % 2 === 0;
-                const squareColor = isLightSquare ? LIGHT_SQUARE_COLOR : DARK_SQUARE_COLOR;
+                const squareColor = isLightSquare ? LIGHT_SQUARE_COLOR : DARK_SQUARE_COLOR; 
                 this.drawSquare(squareColor, file, rank);
-                this.drawPiece(file, rank);
+                this.drawPiece(squares, file, rank);
             }
         }
     }

@@ -1,16 +1,9 @@
 import { Piece } from "../models/piece.js";
-import { Board } from "../models/board.js";
-
 
 export class FENParser {
-    constructor(board) {
-        this.board = board;
-    }
-
-    loadPositionFromFEN(fen) {
-        // Access the static property Square directly from the Board class
-        Board.Square.fill(null);
-        const [position] = fen.split(' ');
+    static parseFEN(fen) {
+        const position = fen.split(' ')[0];
+        const squares = new Array(64).fill(null);
         let squareIndex = 0;
 
         for (const char of position) {
@@ -19,16 +12,18 @@ export class FENParser {
             } else if (/\d/.test(char)) {
                 squareIndex += parseInt(char, 10);
             } else {
-                const piece = this.fenToPiece(char);
+                const piece = FENParser.charToPiece(char);
                 if (piece !== null) {
-                    Board.Square[squareIndex] = piece;
+                    squares[squareIndex] = piece;
                 }
                 squareIndex++;
             }
         }
+
+        return squares;
     }
 
-    fenToPiece(char) {
+    static charToPiece(char) {
         const color = char === char.toUpperCase() ? Piece.White : Piece.Black;
         const pieceChar = char.toLowerCase();
         switch (pieceChar) {
