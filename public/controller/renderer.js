@@ -33,14 +33,55 @@ export class Render {
         }
     }
 
-    createGraphicalBoard(squares) {
+
+    highlightMoves(moves) {
+        moves.forEach(move => {
+            const { file, rank, isCapture, coversFriendly } = move;
+            this.drawHighlight(file, rank, isCapture, coversFriendly);
+        });
+    }
+    
+    drawHighlight(file, rank, isCapture, coversFriendly) {
+        const x = file * this.squareSize;
+        const y = rank * this.squareSize;
+        let highlightFillColor, highlightBorderColor;
+    
+        // Determine the highlight color based on the move type
+        if (isCapture) {
+            highlightFillColor = 'rgba(255, 0, 0, 0.7)'; // Red for captures
+            highlightBorderColor = 'darkred'; // Dark red for captures
+        } else if (coversFriendly) {
+            highlightFillColor = 'rgba(50, 205, 50, 0.7)'; // Green for covering friendly pieces
+            highlightBorderColor = 'darkgreen'; // Dark green for covers
+        } else {
+            highlightFillColor = 'rgba(173, 216, 230, 0.7)'; // Light blue for normal moves
+            highlightBorderColor = 'rgba(70, 130, 180, 0.9)'; // Darker blue for normal moves
+        }
+    
+        // Draw the highlight fill
+        this.ctx.fillStyle = highlightFillColor;
+        this.ctx.fillRect(x, y, this.squareSize, this.squareSize);
+    
+        // Draw the highlight border
+        this.ctx.strokeStyle = highlightBorderColor;
+        this.ctx.lineWidth = 2; // Set the border width
+        this.ctx.strokeRect(x, y, this.squareSize, this.squareSize);
+    }
+    
+
+
+    createGraphicalBoard(squares, moves) {
         for (let file = 0; file < 8; file++) {
             for (let rank = 0; rank < 8; rank++) {
                 const isLightSquare = (file + rank) % 2 === 0;
-                const squareColor = isLightSquare ? LIGHT_SQUARE_COLOR : DARK_SQUARE_COLOR; 
+                const squareColor = isLightSquare ? LIGHT_SQUARE_COLOR : DARK_SQUARE_COLOR;
                 this.drawSquare(squareColor, file, rank);
                 this.drawPiece(squares, file, rank);
             }
+        }
+
+        if (moves) {
+            this.highlightMoves(moves);
         }
     }
 }

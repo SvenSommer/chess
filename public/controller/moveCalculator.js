@@ -47,7 +47,7 @@ export class MoveCalculator {
         const captureFiles = [file - 1, file + 1]; // Pawns can capture one file to the left or right
         for (const captureFile of captureFiles) {
             if (this.isSquareOccupiedByOpponent(captureFile, nextRank, piece)) {
-                moves.push({ file: captureFile, rank: nextRank });
+                moves.push({ file: captureFile, rank: nextRank, isCapture: true });
             }
         }
     
@@ -68,36 +68,109 @@ export class MoveCalculator {
         }
         return false;
     }
+
+    isSquareOccupiedByOwnPiece(file, rank, piece) {
+        if (this.isWithinBoardBounds(file, rank)) {
+            const targetPiece = this.Square[file + rank * 8];
+            return targetPiece !== null && (targetPiece & Piece.ColorMask) === (piece & Piece.ColorMask);
+        }
+        return false;
+    }
     
     isWithinBoardBounds(file, rank) {
         return file >= 0 && file < 8 && rank >= 0 && rank < 8;
     }
     
-
     getKnightMoves(piece, file, rank) {
-        // Calculate and return knight moves
-        return []; // Placeholder for the actual move calculation
+        const moves = [];
+        const knightMoves = [
+            { file: -1, rank: -2 }, { file: 1, rank: -2 },
+            { file: -2, rank: -1 }, { file: 2, rank: -1 },
+            { file: -2, rank: 1 }, { file: 2, rank: 1 },
+            { file: -1, rank: 2 }, { file: 1, rank: 2 }
+        ];
+    
+        for (const move of knightMoves) {
+            const newFile = file + move.file;
+            const newRank = rank + move.rank;
+            if (this.isWithinBoardBounds(newFile, newRank)) {
+                const moveDetails = { file: newFile, rank: newRank };
+                if (this.isSquareOccupiedByOpponent(newFile, newRank, piece)) {
+                    moveDetails.isCapture = true;
+                } else if (this.isSquareOccupiedByOwnPiece(newFile, newRank, piece)) {
+                    moveDetails.coversFriendly = true;
+                }
+                moves.push(moveDetails);
+            }
+        }
+    
+        return moves;
     }
 
     getBishopMoves(piece, file, rank) {
-        // Calculate and return bishop moves
-        return []; // Placeholder for the actual move calculation
+        return this.getSlidingMoves(piece, file, rank, [
+            { file: -1, rank: -1 }, { file: 1, rank: -1 },
+            { file: -1, rank: 1 }, { file: 1, rank: 1 }
+        ]);
     }
-
+    
     getRookMoves(piece, file, rank) {
-        // Calculate and return rook moves
-        return []; // Placeholder for the actual move calculation
+        return this.getSlidingMoves(piece, file, rank, [
+            { file: 0, rank: -1 }, { file: 0, rank: 1 },
+            { file: -1, rank: 0 }, { file: 1, rank: 0 }
+        ]);
     }
-
+    
     getQueenMoves(piece, file, rank) {
-        // Calculate and return queen moves
-        return []; // Placeholder for the actual move calculation
+        // Queen moves are a combination of Rook and Bishop moves
+        return [
+            ...this.getBishopMoves(piece, file, rank),
+            ...this.getRookMoves(piece, file, rank)
+        ];
     }
-
+    
     getKingMoves(piece, file, rank) {
-        // Calculate and return king moves
-        return []; // Placeholder for the actual move calculation
+        const moves = [];
+        const kingMoves = [
+            { file: -1, rank: -1 }, { file: 0, rank: -1 }, { file: 1, rank: -1 },
+            { file: -1, rank: 0 }, /* { file: 0, rank: 0 }, skip this one */ { file: 1, rank: 0 },
+            { file: -1, rank: 1 }, { file: 0, rank: 1 }, { file: 1, rank: 1 }
+        ];
+    
+        for (const move of kingMoves) {
+            const newFile = file + move.file;
+            const newRank = rank + move.rank;
+            if (this.isWithinBoardBounds(newFile, newRank) && !this.isSquareOccupiedByOwnPiece(newFile, newRank, piece)) {
+                moves.push({ file: newFile, rank: newRank, isCapture: this.isSquareOccupiedByOpponent(newFile, newRank, piece) });
+            }
+        }
+    
+        return moves;
     }
-
-    // Other helper methods can be added here to assist in calculating moves, such as checking for checks, pins, etc.
+    
+    getSlidingMoves(piece, file, rank, directions) {
+        const moves = [];
+        for (const direction of directions) {
+            let newFile = file + direction.file;
+            let newRank = rank + direction.rank;
+            while (this.isWithinBoardBounds(newFile, newRank)) {
+                const moveDetails = { file: newFile, rank: newRank };
+                if (this.isSquareOccupiedByOwnPiece(newFile, newRank, piece)) {
+                    moveDetails.coversFriendly = true;
+                    moves.push(moveDetails);
+                    break; // Stop at the first encountered piece
+                } else {
+                    if (this.isSquareOccupiedByOpponent(newFile, newRank, piece)) {
+                        moveDetails.isCapture = true;
+                        moves.push(moveDetails);
+                        break; // Can capture but can't move further
+                    }
+                    moves.push(moveDetails);
+                }
+                newFile += direction.file;
+                newRank += direction.rank;
+            }
+        }
+        return moves;
+    }
 }
