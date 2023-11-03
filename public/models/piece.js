@@ -6,42 +6,53 @@ export class Piece {
    static Rook = 4;
    static Queen = 5;
    static King = 6;
- 
+
    static White = 0;
    static Black = 8;
- 
+
    static TypeMask = 0b0111;
    static ColorMask = 0b1000;
- 
+
    static isColor(piece, color) {
-     return (piece & Piece.ColorMask) === color && piece !== Piece.None;
+      return (piece & Piece.ColorMask) === color && piece !== Piece.None;
    }
- 
+
    static isWhite(piece) {
-     return Piece.isColor(piece, Piece.White);
+      return Piece.isColor(piece, Piece.White);
    }
- 
+
    static pieceColor(piece) {
-     return piece & Piece.ColorMask;
+      return piece & Piece.ColorMask;
    }
- 
+
    static pieceType(piece) {
-     return piece & Piece.TypeMask;
+      return piece & Piece.TypeMask;
    }
- 
+
    static isOrthogonalSlider(piece) {
-     const type = Piece.pieceType(piece);
-     return type === Piece.Queen || type === Piece.Rook;
+      const type = Piece.pieceType(piece);
+      return type === Piece.Queen || type === Piece.Rook;
    }
- 
+
    static isDiagonalSlider(piece) {
-     const type = Piece.pieceType(piece);
-     return type === Piece.Queen || type === Piece.Bishop;
+      const type = Piece.pieceType(piece);
+      return type === Piece.Queen || type === Piece.Bishop;
    }
- 
+
    static isSlidingPiece(piece) {
-     const type = Piece.pieceType(piece);
-     return type === Piece.Queen || type === Piece.Bishop || type === Piece.Rook;
+      const type = Piece.pieceType(piece);
+      return type === Piece.Queen || type === Piece.Bishop || type === Piece.Rook;
+   }
+
+   static getIndex(file, rank) {
+      return file + rank * 8;
+   }
+
+   static getFileRankFromPosition(squareSize, { x, y }) {
+      return {
+         file: Math.floor(x / squareSize),
+         rank: Math.floor(y / squareSize)
+      };
    }
 
    static pieceMapping = {
@@ -57,5 +68,5 @@ export class Piece {
       [Piece.Black | Piece.Pawn]: 'dp',
       [Piece.Black | Piece.Queen]: 'dq',
       [Piece.Black | Piece.Rook]: 'dr',
-  };
+   };
 }

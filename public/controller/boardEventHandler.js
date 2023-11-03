@@ -1,6 +1,23 @@
 import { Piece } from "../models/piece.js";
 import { SelectedPiece } from "../models/SelectedPiece.js";
+import { GameLogic } from "./GameLogic.js";
 import { MoveCalculator } from "./moveCalculator.js";
+
+export class PieceMover {
+    constructor(squares, moveCalculator, renderer) {
+        this.squares = squares;
+        this.moveCalculator = moveCalculator;
+        this.renderer = renderer;
+        this.selectedPiece = null;
+    }
+
+    selectPiece(piece, mousePos) { /* ... */ }
+    dragPiece(mousePosition) { /* ... */ }
+    dropPiece(mousePos) { /* ... */ }
+    placePiece(file, rank) { /* ... */ }
+    returnPiece() { /* ... */ }
+    isMoveValid(file, rank) { /* ... */ }
+}
 
 export class BoardEventHandler {
     constructor(canvas, squareSize, squares, render) {
@@ -10,7 +27,7 @@ export class BoardEventHandler {
         this.render = render;
         this.selectedPiece = null;
         this.moveCalculator = new MoveCalculator(squares);
-
+        this.gameLogic = new GameLogic(squares);
         this.attachHandlers();
     }
 
@@ -51,7 +68,7 @@ export class BoardEventHandler {
 
     onMouseDown(event) {
         const mousePos = this.getMousePosition(event);
-        const piece = this.getPieceAtPosition(mousePos);
+        const piece = this.getPieceAtPosition(this.squares, mousePos);
         if (piece) {
             this.selectPiece(piece, mousePos);
         }
@@ -79,13 +96,13 @@ export class BoardEventHandler {
         };
     }
 
-    getPieceAtPosition({ x, y }) {
-        const { file, rank } = this.getFileRankFromPosition({ x, y });
-        return this.squares[this.getIndex(file, rank)];
+    getPieceAtPosition(squares, { x, y }) {
+        const { file, rank } = Piece.getFileRankFromPosition(this.squareSize, { x, y });
+        return squares[Piece.getIndex(file, rank)];
     }
 
     selectPiece(piece, mousePos) {
-        const { file, rank } = this.getFileRankFromPosition(mousePos);
+        const { file, rank } = Piece.getFileRankFromPosition(this.squareSize, mousePos);
         const moves = this.moveCalculator.getPossibleMoves(piece, file, rank);
         this.selectedPiece = new SelectedPiece(piece, file, rank, moves);
         this.highlightMoves(moves);
@@ -97,7 +114,7 @@ export class BoardEventHandler {
     }
 
     removePieceFromBoard(file, rank) {
-        this.squares[this.getIndex(file, rank)] = null;
+        this.squares[Piece.getIndex(file, rank)] = null;
     }
 
     dragPiece(mousePosition) {
@@ -106,13 +123,8 @@ export class BoardEventHandler {
     }
 
     dropPiece(mousePos) {
-        const { file, rank } = this.getFileRankFromPosition(mousePos);
-        if (this.isMoveValid(file, rank)) {
-            this.placePiece(file, rank);
-        } else {
-            this.returnPiece();
-        }
-        this.checkForCheckmate();
+        const { file, rank } = Piece.getFileRankFromPosition(this.squareSize, mousePos);
+        this.placePiece(file, rank);
     }
 
     renderPieceDraggedByMouse(mousePos) {
@@ -131,13 +143,13 @@ export class BoardEventHandler {
 
     placePiece(file, rank) {
         const moveIsValid = this.isMoveValid(file, rank);
-        const originalIndex = this.getIndex(this.selectedPiece.file, this.selectedPiece.rank);
-        const targetIndex = this.getIndex(file, rank);
+        const originalIndex = Piece.getIndex(this.selectedPiece.file, this.selectedPiece.rank);
+        const targetIndex = Piece.getIndex(file, rank);
 
         if (moveIsValid) {
             this.squares[originalIndex] = null;
             this.squares[targetIndex] = this.selectedPiece.piece;
-            this.checkForCheckmate();
+            this.gameLogic.checkForCheckmate(this.selectedPiece);
         } else {
             this.returnPiece();
         }
@@ -145,44 +157,25 @@ export class BoardEventHandler {
 
     returnPiece() {
         const { file, rank, piece } = this.selectedPiece;
-        this.squares[this.getIndex(file, rank)] = piece;
+        this.squares[Piece.getIndex(file, rank)] = piece;
     }
 
     isMoveValid(file, rank) {
-        const targetPiece = this.getPieceAtPosition({ x: file * this.squareSize, y: rank * this.squareSize });
-        const isOwnPiece = targetPiece && this.isSameColor(targetPiece, this.selectedPiece.piece);
+        const targetPiece = this.getPieceAtPosition(this.squares, { x: file * this.squareSize, y: rank * this.squareSize });
+        const isOwnPiece = targetPiece && this.gameLogic.isSameColor(targetPiece, this.selectedPiece.piece);
         return !isOwnPiece && this.selectedPiece.moves.some(move => move.file === file && move.rank === rank);
     }
 
 
-    checkForCheckmate() {
-        const isKingCaptured = this.isKingCaptured(this.getOpponentColor(this.selectedPiece.piece));
-        if (isKingCaptured) {
-            alert("Checkmate! The game is over.");
-        }
-    }
 
-    getIndex(file, rank) {
-        return file + rank * 8;
-    }
 
-    isSameColor(piece1, piece2) {
-        return (piece1 & Piece.ColorMask) === (piece2 & Piece.ColorMask);
-    }
+ 
 
-    getOpponentColor(piece) {
-        return (piece & Piece.ColorMask) === Piece.White ? Piece.Black : Piece.White;
-    }
 
-    isKingCaptured(opponentColor) {
-        const opponentKing = opponentColor | Piece.King;
-        return !this.squares.includes(opponentKing);
-    }
 
-    getFileRankFromPosition({ x, y }) {
-        return {
-            file: Math.floor(x / this.squareSize),
-            rank: Math.floor(y / this.squareSize)
-        };
-    }
+
+
+
+
+
 }
