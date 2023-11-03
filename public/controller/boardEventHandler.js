@@ -2,13 +2,13 @@
 import { PieceMover } from "./PieceMover.js";
 
 export class BoardEventHandler {
-    constructor(canvas, squareSize, squares, renderer) {
+    constructor(canvas, squareSize, squares, renderer, players) {
         this.canvas = canvas;
         this.squareSize = squareSize;
         this.squares = squares;
         this.render = renderer;
         this.selectedPiece = null;
-        this.pieceMover = new PieceMover(squares, squareSize, renderer);
+        this.pieceMover = new PieceMover(squares, squareSize, renderer, players);
         this.attachHandlers();
     }
 

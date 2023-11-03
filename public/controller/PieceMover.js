@@ -3,82 +3,134 @@ import { SelectedPiece } from "../models/SelectedPiece.js";
 import { GameLogic } from "./GameLogic.js";
 import { MoveCalculator } from "./moveCalculator.js";
 
-
 export class PieceMover {
-    constructor(squares, squareSize, renderer) {
+    constructor(squares, squareSize, renderer, players) {
         this.squares = squares;
         this.squareSize = squareSize;
-        this.moveCalculator = new MoveCalculator(squares);
         this.renderer = renderer;
-        this.selectedPiece = null;
+        this.players = players;
+        this.currentPlayerIndex = 0; // Starten mit dem ersten Spieler
+        this.moveCalculator = new MoveCalculator(squares);
         this.gameLogic = new GameLogic(squares);
+        this.selectedPiece = null;
     }
 
+    getCurrentPlayer() {
+        return this.players[this.currentPlayerIndex];
+    }
+
+    switchPlayer() {
+        this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
+        this._checkIfPlayerIsComputer();
+    }
+
+    _checkIfPlayerIsComputer() {
+        const currentPlayer = this.getCurrentPlayer();
+        console.log(currentPlayer)
+
+        if (!currentPlayer.isHuman) {
+            console.log(currentPlayer.isHuman)
+            this._makeRandomMove();
+        }
+    }
+
+    _makeRandomMove() {
+        const currentPlayerColor = this.getCurrentPlayer().color;
+        const possibleMoves = this.moveCalculator.getAllPossibleMovesForPlayer(currentPlayerColor);
+        if (possibleMoves.length > 0) {
+            const randomMoveIndex = Math.floor(Math.random() * possibleMoves.length);
+            const randomMove = possibleMoves[randomMoveIndex];
+            this._selectAndHighlightPiece(randomMove.piece, randomMove.fileFrom, randomMove.rankFrom)
+            this._placePiece(randomMove.fileTo, randomMove.rankTo);
+            this.renderer.createGraphicalBoard(this.squares);
+        }
+    }
+
+
     selectPiece(mousePos) {
-        const piece = this.getPieceAtPosition(this.squares, mousePos);
-        const { file, rank } = Piece.getFileRankFromPosition(this.squareSize, mousePos);
-        const moves = this.moveCalculator.getPossibleMoves(piece, file, rank);
-        this.selectedPiece = new SelectedPiece(piece, file, rank, moves);
-        this.highlightMoves(moves);
-        this.removePieceFromBoard(file, rank);
+        const piece = this._getPieceAtPosition(mousePos);
+        if (!this._isCurrentPlayerPiece(piece)) {
+            this._logPieceSelectionError(piece);
+            return;
+        }
+        const { file, rank } = this._calculateFileRankFromPosition(mousePos);
+
+        this._selectAndHighlightPiece(piece, file, rank);
     }
 
     dragPiece(mousePos) {
         if (this.selectedPiece) {
-            this.highlightMoves(this.selectedPiece.moves);
-            this.renderPieceDraggedByMouse(mousePos);
+            this.renderer.createGraphicalBoard(this.squares, this.selectedPiece.moves);
+            this._renderPieceDraggedByMouse(mousePos);
         }
-
     }
 
     dropPiece(mousePos) {
-        if (this.selectPiece) {
-            const { file, rank } = Piece.getFileRankFromPosition(this.squareSize, mousePos);
-            this.placePiece(file, rank);
+        if (this.selectedPiece) {
+            const { file, rank } = this._calculateFileRankFromPosition(mousePos);
+            this._placePiece(file, rank);
+            this.renderer.createGraphicalBoard(this.squares);
         }
-        this.renderer.createGraphicalBoard(this.squares);
     }
 
-    placePiece(file, rank) {
-        const moveIsValid = this.isMoveValid(file, rank);
-        const originalIndex = Piece.getIndex(this.selectedPiece.file, this.selectedPiece.rank);
-        const targetIndex = Piece.getIndex(file, rank);
+    _isCurrentPlayerPiece(piece) {
+        if (!piece) return false;
 
-        if (moveIsValid) {
-            this.squares[originalIndex] = null;
-            this.squares[targetIndex] = this.selectedPiece.piece;
+        const isWhitePiece = Piece.isWhite(piece);
+        const currentPlayerColor = this.getCurrentPlayer().color;
+
+        return (
+            (isWhitePiece && currentPlayerColor === 'Weiß') ||
+            (!isWhitePiece && currentPlayerColor === 'Schwarz')
+        );
+    }
+
+    _logPieceSelectionError(piece) {
+        const isWhitePiece = Piece.isWhite(piece);
+        const currentPlayerColor = this.getCurrentPlayer().color;
+        console.error(`Selected piece color mismatch: Piece is ${isWhitePiece ? 'white' : 'black'}, but current player is ${currentPlayerColor}.`);
+    }
+
+    _selectAndHighlightPiece(piece, file, rank) {
+        const moves = this.moveCalculator.getPossibleMoves(piece, file, rank);
+        this.selectedPiece = new SelectedPiece(piece, file, rank, moves);
+        this.renderer.createGraphicalBoard(this.squares, moves);
+        this._removePieceFromBoard(file, rank);
+    }
+
+
+    _placePiece(file, rank) {
+        if (this._isMoveValid(file, rank)) {
+            this._executeMove(file, rank);
             this.gameLogic.checkForCheckmate(this.selectedPiece);
-            this.selectedPiece = null;
         } else {
-            this.returnPiece();
+            console.log("Move invalid!")
+            this._returnPiece();
         }
-    }
-
-    returnPiece() {
-        const { file, rank, piece } = this.selectedPiece;
-        this.squares[Piece.getIndex(file, rank)] = piece;
         this.selectedPiece = null;
     }
-    isMoveValid(file, rank) {
-        const targetPiece = this.getPieceAtPosition(this.squares, { x: file * this.squareSize, y: rank * this.squareSize });
+
+    _returnPiece() {
+        const { file, rank, piece } = this.selectedPiece;
+        this.squares[Piece.getIndex(file, rank)] = piece;
+    }
+
+    _isMoveValid(file, rank) {
+        const targetPiece = this._getPieceAtPosition({ x: file * this.squareSize, y: rank * this.squareSize });
         const isOwnPiece = targetPiece && this.gameLogic.isSameColor(targetPiece, this.selectedPiece.piece);
         return !isOwnPiece && this.selectedPiece.moves.some(move => move.file === file && move.rank === rank);
     }
 
-    highlightMoves(moves) {
-        this.renderer.createGraphicalBoard(this.squares, moves);
-    }
-
-    removePieceFromBoard(file, rank) {
+    _removePieceFromBoard(file, rank) {
         this.squares[Piece.getIndex(file, rank)] = null;
     }
 
-    renderPieceDraggedByMouse(mousePos) {
-        const { x, y } = this.calculatePiecePosition(mousePos);
+    _renderPieceDraggedByMouse(mousePos) {
+        const { x, y } = this._calculatePiecePosition(mousePos);
         this.renderer.drawPieceAtPosition(this.selectedPiece.piece, x, y);
     }
 
-    calculatePiecePosition(mousePos) {
+    _calculatePiecePosition(mousePos) {
         const offsetX = mousePos.x % this.squareSize;
         const offsetY = mousePos.y % this.squareSize;
         return {
@@ -87,8 +139,20 @@ export class PieceMover {
         };
     }
 
-    getPieceAtPosition(squares, { x, y }) {
-        const { file, rank } = Piece.getFileRankFromPosition(this.squareSize, { x, y });
-        return squares[Piece.getIndex(file, rank)];
+    _getPieceAtPosition({ x, y }) {
+        const { file, rank } = this._calculateFileRankFromPosition({ x, y });
+        return this.squares[Piece.getIndex(file, rank)];
+    }
+
+    _calculateFileRankFromPosition(mousePos) {
+        return Piece.getFileRankFromPosition(this.squareSize, mousePos);
+    }
+
+    _executeMove(file, rank) {
+        const originalIndex = Piece.getIndex(this.selectedPiece.file, this.selectedPiece.rank);
+        const targetIndex = Piece.getIndex(file, rank);
+        this.squares[originalIndex] = null;
+        this.squares[targetIndex] = this.selectedPiece.piece;
+        this.switchPlayer()
     }
 }

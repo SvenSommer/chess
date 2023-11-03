@@ -1,8 +1,36 @@
 import { Piece } from "../models/piece.js";
+import { Move } from "../models/Move.js";
 
 export class MoveCalculator {
     constructor(Square) {
         this.Square = Square;
+    }
+
+    getAllPossibleMovesForPlayer(playerColor) {
+        const possibleMoves = [];
+        for (let rank = 0; rank < 8; rank++) {
+            for (let file = 0; file < 8; file++) {
+                const piece = this.Square[file + rank * 8];
+                if (piece !== null && !this._isCurrentPlayerPiece(piece, playerColor)) {
+                    const pieceMoves = this.getPossibleMoves(piece, file, rank);
+                    for (const move of pieceMoves) {
+                        possibleMoves.push(new Move(piece, file, rank, move.file, move.rank));
+                    }
+                }
+            }
+        }
+        return possibleMoves;
+    }
+
+    _isCurrentPlayerPiece(piece, playerColor) {
+        if (!piece) return false;
+
+        const isWhitePiece = Piece.isWhite(piece);
+
+        return (
+            (!isWhitePiece && playerColor === 'Weiß') ||
+            (isWhitePiece && playerColor === 'Schwarz')
+        );
     }
 
     getPossibleMoves(piece, file, rank) {
