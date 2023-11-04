@@ -5,6 +5,7 @@ import { Player } from "./player.js";
 
 const SQUARE_SIZE = 75;
 const STARTING_POSITION_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+//const STARTING_POSITION_FEN = "4k3/p7/8/8/8/8/1P6/4K3 w KQkq - 0 1";
 export class Board {
     constructor(images) {
         this.images = images;

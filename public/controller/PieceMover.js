@@ -2,6 +2,7 @@ import { Piece } from "../models/piece.js";
 import { SelectedPiece } from "../models/SelectedPiece.js";
 import { GameLogic } from "./GameLogic.js";
 import { MoveCalculator } from "./moveCalculator.js";
+import { MoveValidator } from "./MoveValidator.js";
 
 export class PieceMover {
     constructor(squares, squareSize, renderer, players) {
@@ -10,9 +11,11 @@ export class PieceMover {
         this.renderer = renderer;
         this.players = players;
         this.currentPlayerIndex = 0; // Starten mit dem ersten Spieler
-        this.moveCalculator = new MoveCalculator(squares);
         this.gameLogic = new GameLogic(squares);
+        this.moveValidator = new MoveValidator(squares, this.gameLogic);
+        this.moveCalculator = new MoveCalculator(squares, this.moveValidator);
         this.selectedPiece = null;
+        this.mode = 1
     }
 
     getCurrentPlayer() {
@@ -24,28 +27,31 @@ export class PieceMover {
         this._checkIfPlayerIsComputer();
     }
 
-    _checkIfPlayerIsComputer() {
+    async _checkIfPlayerIsComputer() {
         const currentPlayer = this.getCurrentPlayer();
-        console.log(currentPlayer)
-
         if (!currentPlayer.isHuman) {
-            console.log(currentPlayer.isHuman)
-            this._makeRandomMove();
+            let move = this.mode === 0 ? this._getRandomMove() : this.moveCalculator.getBestMoveForPlayer(currentPlayer.color);
+            if (move) this.executeMove(move);
         }
     }
 
-    _makeRandomMove() {
+    _getRandomMove() {
         const currentPlayerColor = this.getCurrentPlayer().color;
         const possibleMoves = this.moveCalculator.getAllPossibleMovesForPlayer(currentPlayerColor);
         if (possibleMoves.length > 0) {
             const randomMoveIndex = Math.floor(Math.random() * possibleMoves.length);
             const randomMove = possibleMoves[randomMoveIndex];
-            this._selectAndHighlightPiece(randomMove.piece, randomMove.fileFrom, randomMove.rankFrom)
-            this._placePiece(randomMove.fileTo, randomMove.rankTo);
-            this.renderer.createGraphicalBoard(this.squares);
+            return randomMove
         }
+        return null;
     }
 
+
+    executeMove(move) {
+        this._selectAndHighlightPiece(move.piece, move.fileFrom, move.rankFrom);
+        this._placePiece(move.fileTo, move.rankTo);
+        this.renderer.createGraphicalBoard(this.squares);
+    }
 
     selectPiece(mousePos) {
         const piece = this._getPieceAtPosition(mousePos);
@@ -99,16 +105,23 @@ export class PieceMover {
     }
 
 
-    _placePiece(file, rank) {
+    async _placePiece(file, rank) {
         if (this._isMoveValid(file, rank)) {
             this._executeMove(file, rank);
-            this.gameLogic.checkForCheckmate(this.selectedPiece);
+            try {
+
+                await this.gameLogic.checkForCheckmate(this.selectedPiece);
+            } catch (error) {
+                console.error(error);
+            }
+            this.selectedPiece = null; // This will now be executed after the check
         } else {
-            console.log("Move invalid!")
+            console.log("Move invalid!");
             this._returnPiece();
+            this._checkIfPlayerIsComputer();
         }
-        this.selectedPiece = null;
     }
+
 
     _returnPiece() {
         const { file, rank, piece } = this.selectedPiece;
@@ -116,9 +129,7 @@ export class PieceMover {
     }
 
     _isMoveValid(file, rank) {
-        const targetPiece = this._getPieceAtPosition({ x: file * this.squareSize, y: rank * this.squareSize });
-        const isOwnPiece = targetPiece && this.gameLogic.isSameColor(targetPiece, this.selectedPiece.piece);
-        return !isOwnPiece && this.selectedPiece.moves.some(move => move.file === file && move.rank === rank);
+        return this.moveValidator.isMoveValid(this.selectedPiece.piece, file, rank);
     }
 
     _removePieceFromBoard(file, rank) {

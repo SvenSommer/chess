@@ -2,8 +2,9 @@ import { Piece } from "../models/piece.js";
 import { Move } from "../models/Move.js";
 
 export class MoveCalculator {
-    constructor(Square) {
+    constructor(Square, moveValidator) {
         this.Square = Square;
+        this.moveValidator = moveValidator
     }
 
     getAllPossibleMovesForPlayer(playerColor) {
@@ -11,10 +12,11 @@ export class MoveCalculator {
         for (let rank = 0; rank < 8; rank++) {
             for (let file = 0; file < 8; file++) {
                 const piece = this.Square[file + rank * 8];
-                if (piece !== null && !this._isCurrentPlayerPiece(piece, playerColor)) {
+                if (piece !== null && this._isCurrentPlayerPiece(piece, playerColor)) {
                     const pieceMoves = this.getPossibleMoves(piece, file, rank);
                     for (const move of pieceMoves) {
-                        possibleMoves.push(new Move(piece, file, rank, move.file, move.rank));
+                        if(this.moveValidator.isMoveValid(piece,move.file, move.rank))
+                            possibleMoves.push(new Move(piece, file, rank, move.file, move.rank, move.isCapture, move.coversFriendly));
                     }
                 }
             }
@@ -22,14 +24,30 @@ export class MoveCalculator {
         return possibleMoves;
     }
 
+    getBestMoveForPlayer(playerColor) {
+        let allMoves = this.getAllPossibleMovesForPlayer(playerColor);
+    
+        // Sort moves with priority: captures > coversFriendly > others
+        allMoves.sort((a, b) => {
+            if (a.isCapture && !b.isCapture) return -1;
+            if (!a.isCapture && b.isCapture) return 1;
+      //      if (a.coversFriendly && !b.coversFriendly) return -1;
+      //      if (!a.coversFriendly && b.coversFriendly) return 1;
+            return 0; 
+        });
+        console.log(allMoves)
+    
+        return allMoves.length > 0 ? allMoves[0] : null;
+    }
+
     _isCurrentPlayerPiece(piece, playerColor) {
+        
         if (!piece) return false;
-
+    
         const isWhitePiece = Piece.isWhite(piece);
-
         return (
-            (!isWhitePiece && playerColor === 'Weiß') ||
-            (isWhitePiece && playerColor === 'Schwarz')
+            (isWhitePiece && playerColor === 'Weiß') ||
+            (!isWhitePiece && playerColor === 'Schwarz')
         );
     }
 
@@ -76,6 +94,10 @@ export class MoveCalculator {
         for (const captureFile of captureFiles) {
             if (this.isSquareOccupiedByOpponent(captureFile, nextRank, piece)) {
                 moves.push({ file: captureFile, rank: nextRank, isCapture: true });
+            }
+            else if(this.isSquareOccupiedByOwnPiece(captureFile, nextRank, piece))
+            {
+                moves.push({ file: captureFile, rank: nextRank, coversFriendly: true });
             }
         }
     

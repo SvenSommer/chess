@@ -7,10 +7,24 @@ export class GameLogic {
     }
 
     checkForCheckmate(selectedPiece) {
-        const isKingCaptured = this.isKingCaptured(this.getOpponentColor(selectedPiece.piece));
-        if (isKingCaptured) {
-            alert("Checkmate! The game is over.");
-        }
+        return new Promise((resolve, reject) => {
+            // Simulate an async operation with setTimeout
+            setTimeout(() => {
+                try {
+                    if (!selectedPiece) {
+                        throw new Error("No piece selected for checkmate check.");
+                    }
+    
+                    const isKingCaptured = this.isKingCaptured(this.getOpponentColor(selectedPiece.piece));
+                    if (isKingCaptured) {
+                        alert("Checkmate! The game is over.");
+                    }
+                    resolve(); // Resolve the promise when done
+                } catch (error) {
+                    reject(error); // Reject the promise if there's an error
+                }
+            }, 0); // Timeout can be set to 0 to defer execution until the call stack is clear
+        });
     }
 
     isKingCaptured(opponentColor) {
